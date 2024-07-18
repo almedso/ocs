@@ -1,0 +1,13 @@
+[package]
+name = "ocs"
+version = "0.1.0"
+authors = ["Volker Kempert <volker.kempert@almedso.de>"]
+edition = "2021"
+description = "Open Code Scene - Analyze a code base inspired by the Book 'Your Code as a Crime Scene' by Adam Tornhill"
+license = "MIT"
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+clap = { version = "4.5.9", features = ["derive"] }
+git2 = "0.19.0"
+time = "0.3.36"
