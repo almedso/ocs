@@ -1,21 +1,40 @@
 use clap::Parser;
-use git2::{Commit, DiffOptions, ObjectType, Repository};
-use git2::{Error, Pathspec};
+use git2::Error;
+use git2::{ObjectType, Repository, Time};
 use std::collections::BTreeSet;
 use std::str;
+use time::{error, macros::format_description, Date, OffsetDateTime, UtcOffset};
 
 #[derive(Parser)]
+#[command(version, about, name = "ocs-summary")]
 struct Args {
-    #[structopt(name = "pat", long = "grep")]
+    #[arg(name = "pattern", long = "grep")]
     /// pattern to filter commit messages by
     flag_grep: Option<String>,
-    #[structopt(name = "dir", long = "git-dir", short = 'C')]
+    #[arg(name = "dir", long = "git-dir", short = 'C')]
     /// alternative git directory to use
     flag_git_dir: Option<String>,
-    #[structopt(name = "commit")]
+    #[arg(long = "before", short = 'b', value_parser = parse_iso_date_and_convert_to_git_time)]
+    /// Only consider commits before the given date in the form YYYY-MM-DD
+    before: Option<Time>,
+    #[arg(long = "after", short = 'a', value_parser = parse_iso_date_and_convert_to_git_time)]
+    /// Only consider commits after the given date in the form YYYY-MM-DD
+    after: Option<Time>,
+    #[arg(name = "commit")]
+    /// commit or list of commits to be considered. A commit can be a
+    /// sha-1, a branch, a tag or a refspec
     arg_commit: Vec<String>,
-    #[structopt(name = "spec", last = true)]
-    arg_spec: Vec<String>,
+}
+
+fn parse_iso_date_and_convert_to_git_time(arg: &str) -> Result<Time, error::Parse> {
+    let format = format_description!("[year]-[month]-[day]");
+    let date = Date::parse(arg, &format)?;
+    let offset_date_time = OffsetDateTime::new_in_offset(
+        date,
+        time::Time::from_hms(0, 0, 0).unwrap(),
+        UtcOffset::from_hms(0, 0, 0).unwrap(),
+    );
+    Ok(Time::new(offset_date_time.unix_timestamp(), 0))
 }
 
 fn run(args: &Args) -> Result<(), Error> {
@@ -50,14 +69,6 @@ fn run(args: &Args) -> Result<(), Error> {
         revwalk.push_head()?;
     }
 
-    // Prepare our diff options and pathspec matcher
-    let (mut diffopts, mut diffopts2) = (DiffOptions::new(), DiffOptions::new());
-    for spec in &args.arg_spec {
-        diffopts.pathspec(spec);
-        diffopts2.pathspec(spec);
-    }
-    let ps = Pathspec::new(args.arg_spec.iter())?;
-
     // Filter our revwalk based on the CLI parameters
     macro_rules! filter_try {
         ($e:expr) => {
@@ -71,34 +82,18 @@ fn run(args: &Args) -> Result<(), Error> {
         .filter_map(|id| {
             let id = filter_try!(id);
             let commit = filter_try!(repo.find_commit(id));
-            if !args.arg_spec.is_empty() {
-                match commit.parents().len() {
-                    0 => {
-                        let tree = filter_try!(commit.tree());
-                        let flags = git2::PathspecFlags::NO_MATCH_ERROR;
-                        if ps.match_tree(&tree, flags).is_err() {
-                            return None;
-                        }
-                    }
-                    _ => {
-                        let m = commit.parents().all(|parent| {
-                            match_with_parent(&repo, &commit, &parent, &mut diffopts)
-                                .unwrap_or(false)
-                        });
-                        if !m {
-                            return None;
-                        }
-                    }
-                }
+
+            if !commit_message_matches(commit.message(), &args.flag_grep) {
+                return None;
             }
-            if !log_message_matches(commit.message(), &args.flag_grep) {
+            if !commit_timestamp_is_in_range(commit.time(), args.before, args.after) {
                 return None;
             }
             Some(Ok(commit))
         })
         .take(!0);
 
-    // count varios stuff
+    // count various stuff
     let mut number_of_commits = 0_u32;
     let mut authors = BTreeSet::new();
 
@@ -115,7 +110,7 @@ fn run(args: &Args) -> Result<(), Error> {
     Ok(())
 }
 
-fn log_message_matches(msg: Option<&str>, grep: &Option<String>) -> bool {
+fn commit_message_matches(msg: Option<&str>, grep: &Option<String>) -> bool {
     match (grep, msg) {
         (&None, _) => true,
         (&Some(_), None) => false,
@@ -123,16 +118,18 @@ fn log_message_matches(msg: Option<&str>, grep: &Option<String>) -> bool {
     }
 }
 
-fn match_with_parent(
-    repo: &Repository,
-    commit: &Commit,
-    parent: &Commit,
-    opts: &mut DiffOptions,
-) -> Result<bool, Error> {
-    let a = parent.tree()?;
-    let b = commit.tree()?;
-    let diff = repo.diff_tree_to_tree(Some(&a), Some(&b), Some(opts))?;
-    Ok(diff.deltas().len() > 0)
+fn commit_timestamp_is_in_range(
+    timestamp: Time,
+    before: Option<Time>,
+    after: Option<Time>,
+) -> bool {
+    if let Some(b) = before {
+        if b < timestamp { return false; }
+    }
+    if let Some(a) = after {
+        return a < timestamp;
+    }
+    true
 }
 
 fn main() {
@@ -140,5 +137,30 @@ fn main() {
     match run(&args) {
         Ok(()) => {}
         Err(e) => println!("error: {}", e),
+    }
+}
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn verify_cli_declaration() {
+        use clap::CommandFactory;
+        Args::command().debug_assert();
+    }
+
+    #[test]
+    fn verify_commit_timestamp_is_in_range() {
+        assert!(commit_timestamp_is_in_range(Time::new(0,0),None, None));
+
+        assert!(commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(1, 0)), None));
+        assert!(!commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(-1, 0)), None));
+
+        assert!(!commit_timestamp_is_in_range(Time::new(0,0),None, Some(Time::new(1, 0))));
+        assert!(commit_timestamp_is_in_range(Time::new(0,0),None, Some(Time::new(-1, 0))));
+
+        assert!(!commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(1, 0)), Some(Time::new(1, 0))));
+        assert!(!commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(-1, 0)), Some(Time::new(-1, 0))));
+        assert!(commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(1, 0)), Some(Time::new(-1, 0))));
     }
 }
