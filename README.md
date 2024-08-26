@@ -11,11 +11,11 @@ but in pure Rust.
 
 Why?
 
-- There is hope, that the Rust implementaion will be must faster for larger
+- There is hope, that the Rust implementation will be must faster for larger
   code bases. There are libraries addressing git and cloc. Thus, everything
   can be performed within one process with very fast algorithms.
 - The strong type system and the guarantees for memory safety and thread safety
-  allow for rubust code.
+  allow for robust code.
 - Build in testing capabilities allows test driven implementations from the beginning.
 
 It starts as a playground.
