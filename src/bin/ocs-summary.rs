@@ -1,6 +1,6 @@
 use clap::Parser;
 use git2::Error;
-use git2::{ObjectType, Repository, Time};
+use git2::{Commit, Oid, ObjectType, Repository, Time, TreeWalkMode, TreeWalkResult};
 use std::collections::BTreeSet;
 use std::str;
 use time::{error, macros::format_description, Date, OffsetDateTime, UtcOffset};
@@ -69,6 +69,26 @@ fn run(args: &Args) -> Result<(), Error> {
         revwalk.push_head()?;
     }
 
+    fn analyse_entries_in_commit(commit: &Commit, entries: &mut BTreeSet::<String>) {
+        commit.tree().expect("Every commit has a tree object").walk(TreeWalkMode::PreOrder, |_, entry| {
+            if entry.kind() == Some(ObjectType::Blob) {
+                if let Some(n) = entry.name() {
+                    entries.insert(n.to_owned());
+                }
+            }
+            TreeWalkResult::Ok
+        }).unwrap();
+    }
+
+    fn analyse_entries_changed_in_commit(commit: &Commit, entries_changed: &mut BTreeSet::<Oid>) {
+        commit.tree().expect("Every commit has a tree object").walk(TreeWalkMode::PreOrder, |_, entry| {
+            if entry.kind() == Some(ObjectType::Blob) {
+                    entries_changed.insert(entry.id().clone());
+            }
+            TreeWalkResult::Ok
+        }).unwrap();
+    }
+
     // Filter our revwalk based on the CLI parameters
     macro_rules! filter_try {
         ($e:expr) => {
@@ -96,6 +116,8 @@ fn run(args: &Args) -> Result<(), Error> {
     // count various stuff
     let mut number_of_commits = 0_u32;
     let mut authors = BTreeSet::new();
+    let mut entries: BTreeSet<String> = BTreeSet::new();
+    let mut entries_changed = BTreeSet::<Oid>::new();
 
     for commit in revwalk {
         number_of_commits += 1;
@@ -104,9 +126,14 @@ fn run(args: &Args) -> Result<(), Error> {
         if let Some(name) = author.name() {
             authors.insert(name.to_owned());
         }
+        analyse_entries_in_commit(&commit, &mut entries);
+        analyse_entries_changed_in_commit(&commit, &mut entries_changed);
     }
-    println!("Commits,{}", number_of_commits);
-    println!("Authors,{}", authors.len());
+    println!("statistic,value");
+    println!("number-of-commits,{}", number_of_commits);
+    println!("number-of-authors,{}", authors.len());
+    println!("number-of-entries,{}", entries.len());
+    println!("number-of-entries-changed,{}", entries_changed.len());
     Ok(())
 }
 
