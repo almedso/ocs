@@ -1,9 +1,9 @@
 use clap::Parser;
 use git2::Error;
-use git2::{Commit, Oid, ObjectType, Repository, Time, TreeWalkMode, TreeWalkResult};
+use git2::{Commit, ObjectType, Oid, Repository, Time, TreeWalkMode, TreeWalkResult};
+use std::cmp::{Ord, Ordering};
 use std::collections::BTreeSet;
 use std::str;
-use std::cmp::{Ord, Ordering};
 use time::{error, macros::format_description, Date, OffsetDateTime, UtcOffset};
 
 #[derive(Parser)]
@@ -71,7 +71,7 @@ impl PartialEq for EntryRevisions {
     }
 }
 
-impl Eq for EntryRevisions { }
+impl Eq for EntryRevisions {}
 
 fn run(args: &Args) -> Result<(), Error> {
     let path = args.flag_git_dir.as_ref().map(|s| &s[..]).unwrap_or(".");
@@ -105,21 +105,25 @@ fn run(args: &Args) -> Result<(), Error> {
         revwalk.push_head()?;
     }
 
-    fn analyse_entries_in_commit(commit: &Commit, entries: &mut BTreeSet::<EntryRevisions>) {
-        commit.tree().expect("Every commit has a tree object").walk(TreeWalkMode::PreOrder, |_, entry| {
-            if entry.kind() == Some(ObjectType::Blob) {
-                if let Some(n) = entry.name() {
-                    let entry_revision = EntryRevisions::new(n.to_owned());
-                    entries.insert(entry_revision.clone());
-                    if let Some(entry_revision) = entries.get(&entry_revision) {
-                        let mut e = entry_revision.clone();
-                        e.revisions.insert(entry.id().clone());
-                        entries.replace(e);
+    fn analyse_entries_in_commit(commit: &Commit, entries: &mut BTreeSet<EntryRevisions>) {
+        commit
+            .tree()
+            .expect("Every commit has a tree object")
+            .walk(TreeWalkMode::PreOrder, |_, entry| {
+                if entry.kind() == Some(ObjectType::Blob) {
+                    if let Some(n) = entry.name() {
+                        let entry_revision = EntryRevisions::new(n.to_owned());
+                        entries.insert(entry_revision.clone());
+                        if let Some(entry_revision) = entries.get(&entry_revision) {
+                            let mut e = entry_revision.clone();
+                            e.revisions.insert(entry.id().clone());
+                            entries.replace(e);
+                        }
                     }
                 }
-            }
-            TreeWalkResult::Ok
-        }).unwrap();
+                TreeWalkResult::Ok
+            })
+            .unwrap();
     }
 
     // Filter our revwalk based on the CLI parameters
@@ -174,7 +178,9 @@ fn commit_timestamp_is_in_range(
     after: Option<Time>,
 ) -> bool {
     if let Some(b) = before {
-        if b < timestamp { return false; }
+        if b < timestamp {
+            return false;
+        }
     }
     if let Some(a) = after {
         return a < timestamp;
@@ -201,16 +207,44 @@ mod test {
 
     #[test]
     fn verify_commit_timestamp_is_in_range() {
-        assert!(commit_timestamp_is_in_range(Time::new(0,0),None, None));
+        assert!(commit_timestamp_is_in_range(Time::new(0, 0), None, None));
 
-        assert!(commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(1, 0)), None));
-        assert!(!commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(-1, 0)), None));
+        assert!(commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(1, 0)),
+            None
+        ));
+        assert!(!commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(-1, 0)),
+            None
+        ));
 
-        assert!(!commit_timestamp_is_in_range(Time::new(0,0),None, Some(Time::new(1, 0))));
-        assert!(commit_timestamp_is_in_range(Time::new(0,0),None, Some(Time::new(-1, 0))));
+        assert!(!commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            None,
+            Some(Time::new(1, 0))
+        ));
+        assert!(commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            None,
+            Some(Time::new(-1, 0))
+        ));
 
-        assert!(!commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(1, 0)), Some(Time::new(1, 0))));
-        assert!(!commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(-1, 0)), Some(Time::new(-1, 0))));
-        assert!(commit_timestamp_is_in_range(Time::new(0,0),Some(Time::new(1, 0)), Some(Time::new(-1, 0))));
+        assert!(!commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(1, 0)),
+            Some(Time::new(1, 0))
+        ));
+        assert!(!commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(-1, 0)),
+            Some(Time::new(-1, 0))
+        ));
+        assert!(commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(1, 0)),
+            Some(Time::new(-1, 0))
+        ));
     }
 }
