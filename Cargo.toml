@@ -1,3 +1,4 @@
+workspace = { members = ["ocs-summary"] }
 [package]
 name = "ocs"
 version = "0.1.0"

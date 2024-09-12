@@ -291,6 +291,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ocs-summary"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "git2",
+ "log",
+ "ocs",
+]
+
+[[package]]
 name = "openssl-probe"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
