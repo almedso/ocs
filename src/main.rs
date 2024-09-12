@@ -14,6 +14,8 @@ pub mod subcommands {
     pub mod hotspot;
     #[macro_use]
     pub mod revisions;
+    #[macro_use]
+    pub mod summary;
 }
 
 use crate::cli::{common_builder, setup_logger};
@@ -34,6 +36,7 @@ fn main() {
         );
     let builder = cloc_command!(builder);
     let builder = hotspot_command!(builder);
+    let builder = revisions_command!(builder);
     let builder = summary_command!(builder);
 
     let matches = builder.get_matches();
@@ -62,7 +65,10 @@ fn main() {
             let git_args = GitArgs::from_cli_args(sub_matches);
             subcommands::revisions::run(common_args, git_args).unwrap();
         }
-
+        Some((subcommands::summary::COMMAND, sub_matches)) => {
+            let git_args = GitArgs::from_cli_args(sub_matches);
+            subcommands::summary::run(common_args, git_args).unwrap();
+        }
         // Further commands can be called as sub processes
         // Since they are not known at this point they will be not listed when calling help
         // see https://docs.rs/clap/latest/clap/_cookbook/git/index.html

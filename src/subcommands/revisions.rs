@@ -14,7 +14,7 @@ use log::info;
 pub const COMMAND: &str = "revisions";
 
 #[macro_export]
-macro_rules! summary_command {
+macro_rules! revisions_command {
     ($command_builder:expr) => {
         $command_builder.subcommand(git_common_args_extension(
             Command::new(subcommands::revisions::COMMAND).about("Git revision frequency"),
