@@ -7,6 +7,7 @@ use std::str;
 use crate::determine_commits_to_analyse;
 #[allow(unused_imports)]
 use crate::git_common_args_extension;
+use crate::progress;
 
 use log::info;
 
@@ -20,7 +21,6 @@ macro_rules! summary_command {
         ))
     };
 }
-
 
 fn analyse_entries_in_commit(commit: &Commit, entries: &mut BTreeSet<String>) {
     commit
@@ -57,12 +57,14 @@ pub fn run(common_args: CommonArgs, git_args: GitArgs) -> Result<(), Error> {
     let revwalk = determine_commits_to_analyse(&repo, git_args)?;
 
     // count various stuff
-    let mut number_of_commits = 0_u32;
+    let mut number_of_commits = 0_u64;
     let mut authors = BTreeSet::new();
     let mut entries: BTreeSet<String> = BTreeSet::new();
     let mut entries_changed = BTreeSet::<Oid>::new();
 
+    progress::start_commit_analysing();
     for commit in revwalk {
+        progress::increment_commit_analysing();
         number_of_commits += 1;
         let commit = commit?;
         let author = commit.author().to_owned();
@@ -72,6 +74,8 @@ pub fn run(common_args: CommonArgs, git_args: GitArgs) -> Result<(), Error> {
         analyse_entries_in_commit(&commit, &mut entries);
         analyse_entries_changed_in_commit(&commit, &mut entries_changed);
     }
+    progress::finish_commit_analysing();
+
     println!("statistic,value");
     println!("number-of-commits,{}", number_of_commits);
     println!("number-of-authors,{}", authors.len());

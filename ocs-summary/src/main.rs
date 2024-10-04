@@ -1,16 +1,14 @@
 use ocs::cli::git_common_args_extension;
 use ocs::git::determine_commits_to_analyse;
 
-
-use ocs::cli::{CommonArgs, GitArgs};
 use ocs::cli::{common_builder, setup_logger};
+use ocs::cli::{CommonArgs, GitArgs};
 
 use git2::Error;
 use git2::{Commit, ObjectType, Oid, Repository, TreeWalkMode, TreeWalkResult};
+use log::info;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
-use log::info;
-
 
 fn analyse_entries_in_commit(commit: &Commit, entries: &mut BTreeSet<String>) {
     commit
@@ -70,9 +68,7 @@ pub fn run(common_args: CommonArgs, git_args: GitArgs) -> Result<(), Error> {
     Ok(())
 }
 
-
 fn main() {
-
     let builder = git_common_args_extension(common_builder());
 
     let matches = builder.get_matches();

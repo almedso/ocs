@@ -88,6 +88,16 @@ pub fn common_builder() -> Command {
             Default is the current directory"
         )
     )
+    .arg (
+        Arg::new("progress")
+        .long("progress")
+        .short('p')
+        .required(false)
+        .action(ArgAction::SetTrue)
+        .help(
+            "Show progress"
+        )
+    )
 }
 
 pub fn git_common_args_extension(builder: Command) -> Command {

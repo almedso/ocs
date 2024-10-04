@@ -12,5 +12,6 @@ categories = ["command-line-utilities", "development-tools"]
 clap = { version = "4.5.9", features = ["derive", "cargo"] }
 env_logger = "0.11.5"
 git2 = "0.19.0"
+indicatif = "0.17.8"
 log = "0.4.22"
 time = { version = "0.3.36", features = ["parsing", "alloc", "std", "macros"] }

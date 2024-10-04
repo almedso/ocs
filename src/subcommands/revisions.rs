@@ -1,4 +1,5 @@
 use crate::cli::{CommonArgs, GitArgs};
+use crate::progress;
 use git2::Error;
 use git2::{Commit, ObjectType, Oid, Repository, TreeWalkMode, TreeWalkResult};
 use std::cmp::{Ord, Ordering};
@@ -84,11 +85,15 @@ pub fn run(common_args: CommonArgs, git_args: GitArgs) -> Result<(), Error> {
 
     let revwalk = determine_commits_to_analyse(&repo, git_args)?;
     let mut entries: BTreeSet<EntryRevisions> = BTreeSet::new();
+    progress::start_commit_analysing();
 
     for commit in revwalk {
+        progress::increment_commit_analysing();
         let commit = commit?;
         analyse_entries_in_commit(&commit, &mut entries);
     }
+    progress::finish_commit_analysing();
+
     println!("entry,n-revs");
     for entry_revision in entries {
         println!("{},{}", entry_revision.name, entry_revision.revisions.len());

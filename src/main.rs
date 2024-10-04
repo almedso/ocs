@@ -1,8 +1,10 @@
 pub mod cli;
 pub mod git;
+pub mod progress;
 
 use crate::cli::git_common_args_extension;
 use crate::git::determine_commits_to_analyse;
+use crate::progress::configure_progress_visualization;
 
 use clap::Arg;
 use cli::{CommonArgs, GitArgs};
@@ -41,7 +43,7 @@ fn main() {
 
     let matches = builder.get_matches();
 
-    // handle common arguments
+    configure_progress_visualization(matches.get_flag("progress"));
     let verbose = matches.get_count("verbose") as u64;
     setup_logger(verbose);
     let common_args = CommonArgs::new(matches.get_one::<PathBuf>("project_dir"));

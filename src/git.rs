@@ -44,6 +44,7 @@ pub fn determine_commits_to_analyse(
             }
         };
     }
+
     let revwalk = revwalk.filter_map(move |id| {
         let id = filter_try!(id);
         let commit = filter_try!(repo.find_commit(id));
@@ -54,6 +55,7 @@ pub fn determine_commits_to_analyse(
         if !commit_timestamp_is_in_range(commit.time(), args.before, args.after) {
             return None;
         }
+        //*r += 1;
         Some(Ok(commit))
     });
 
