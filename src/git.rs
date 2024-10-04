@@ -85,3 +85,51 @@ fn commit_timestamp_is_in_range(
     }
     true
 }
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn verify_commit_timestamp_is_in_range() {
+        assert!(commit_timestamp_is_in_range(Time::new(0, 0), None, None));
+
+        assert!(commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(1, 0)),
+            None
+        ));
+        assert!(!commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(-1, 0)),
+            None
+        ));
+
+        assert!(!commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            None,
+            Some(Time::new(1, 0))
+        ));
+        assert!(commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            None,
+            Some(Time::new(-1, 0))
+        ));
+
+        assert!(!commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(1, 0)),
+            Some(Time::new(1, 0))
+        ));
+        assert!(!commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(-1, 0)),
+            Some(Time::new(-1, 0))
+        ));
+        assert!(commit_timestamp_is_in_range(
+            Time::new(0, 0),
+            Some(Time::new(1, 0)),
+            Some(Time::new(-1, 0))
+        ));
+    }
+}
+
