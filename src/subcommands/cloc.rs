@@ -3,7 +3,7 @@ use log::info;
 
 pub const COMMAND: &str = "cloc";
 
-use tokei::{ Config, Languages, Report};
+use tokei::{Config, Languages, Report};
 
 #[macro_export]
 macro_rules! cloc_command {
@@ -37,7 +37,7 @@ pub fn run(common_args: CommonArgs) {
         for reports in &[&a, &b] {
             for report in reports.iter() {
                 println!(
-                    "{};{};{};{}",
+                    "{},{},{},{}",
                     report.name.display(),
                     report.stats.code,
                     report.stats.comments,
