@@ -4,13 +4,30 @@ use clap::{
 };
 use std::env;
 use std::path::PathBuf;
+use std::{error::Error, io, io::Write};
 
 use git2::Time;
 
 use time::{error, macros::format_description, Date, OffsetDateTime, UtcOffset};
+
+#[derive(Debug, Clone)]
+pub enum OutputFormat {
+    Csv,
+    Json,
+    D3Graphics,
+}
+
+#[derive(Debug, Clone)]
+pub enum OutputTarget {
+    Stdout,
+    Browser,
+    File(String),
+}
 #[derive(Debug, Clone)]
 pub struct CommonArgs {
     pub project_dir: String,
+    pub format: OutputFormat,
+    pub output: OutputTarget,
 }
 
 impl CommonArgs {
@@ -21,6 +38,8 @@ impl CommonArgs {
         };
         CommonArgs {
             project_dir: project_dir.into_os_string().into_string().unwrap().clone(),
+            format: OutputFormat::Csv,
+            output: OutputTarget::Stdout,
         }
     }
 }
@@ -127,4 +146,14 @@ fn parse_iso_date_and_convert_to_git_time(arg: &str) -> Result<Time, error::Pars
         UtcOffset::from_hms(0, 0, 0).unwrap(),
     );
     Ok(Time::new(offset_date_time.unix_timestamp(), 0))
+}
+
+pub trait OutputFormatter {
+    fn csv_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>>;
+    fn json_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>>;
+
+    fn output(&self, _format: OutputFormat, _target: OutputTarget) {
+        let mut writer = io::stdout();
+        self.csv_output(&mut writer).unwrap();
+    }
 }

@@ -1,8 +1,10 @@
-use crate::cli::{CommonArgs, GitArgs};
-use git2::Error;
+use crate::cli::{CommonArgs, GitArgs, OutputFormatter};
 use git2::{Commit, ObjectType, Oid, Repository, TreeWalkMode, TreeWalkResult};
+
+use serde::Serialize;
 use std::collections::BTreeSet;
 use std::str;
+use std::{error::Error, io::Write};
 
 use crate::determine_commits_to_analyse;
 #[allow(unused_imports)]
@@ -50,7 +52,7 @@ fn analyse_entries_changed_in_commit(commit: &Commit, entries_changed: &mut BTre
         .unwrap();
 }
 
-pub fn run(common_args: CommonArgs, git_args: GitArgs) -> Result<(), Error> {
+pub fn run(common_args: CommonArgs, git_args: GitArgs) -> Result<(), Box<dyn Error>> {
     info!("Run git revision summary");
     let repo = Repository::open(common_args.project_dir)?;
 
@@ -76,10 +78,70 @@ pub fn run(common_args: CommonArgs, git_args: GitArgs) -> Result<(), Error> {
     }
     progress::finish_commit_analysing();
 
-    println!("statistic,value");
-    println!("number-of-commits,{}", number_of_commits);
-    println!("number-of-authors,{}", authors.len());
-    println!("number-of-entries,{}", entries.len());
-    println!("number-of-entries-changed,{}", entries_changed.len());
+    let raw_data = SummaryRawData {
+        no_of_commits: number_of_commits,
+        no_of_authors: authors.len() as u64,
+        no_of_entries: entries.len() as u64,
+        no_of_entries_changed: entries_changed.len() as u64,
+    };
+    raw_data.output(common_args.format, common_args.output);
+
     Ok(())
 }
+
+struct SummaryRawData {
+    no_of_commits: u64,
+    no_of_authors: u64,
+    no_of_entries: u64,
+    no_of_entries_changed: u64,
+}
+
+#[derive(Serialize)]
+struct Summary<'a> {
+    statistics: &'a str,
+    value: u64,
+}
+
+impl<'a> Summary<'a> {
+    pub fn new(statistics: &'a str, value: u64) -> Self {
+        Summary { statistics, value }
+    }
+}
+
+
+impl OutputFormatter for SummaryRawData{
+
+    fn csv_output(&self, writer: &mut dyn Write,) -> Result<(), Box<dyn Error>> {
+        let mut wtr = csv::Writer::from_writer(writer);
+
+        wtr.serialize(Summary::new("number-of-commits",self.no_of_commits))?;
+        wtr.serialize(Summary::new("number-of-authors",self.no_of_authors))?;
+        wtr.serialize(Summary::new("number-of-entries",self.no_of_entries))?;
+        wtr.serialize(Summary::new(
+            "number-of-entries-changed",
+           self.no_of_entries_changed,
+        ))?;
+
+        wtr.flush()?;
+        Ok(())
+    }
+
+    fn json_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>> {
+        let mut wtr = serde_json::Serializer::pretty(writer);
+
+        let mut o = Vec::<Summary>::new();
+        o.push(Summary::new("number-of-commits",self.no_of_commits));
+        o.push(Summary::new("number-of-authors",self.no_of_authors));
+        o.push(Summary::new("number-of-entries",self.no_of_entries));
+        o.push(Summary::new(
+            "number-of-entries-changed",
+           self.no_of_entries_changed,
+        ));
+
+        o.serialize(&mut wtr)?;
+
+        Ok(())
+    }
+}
+
+
