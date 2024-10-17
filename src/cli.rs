@@ -1,36 +1,52 @@
 use clap::{
-    crate_authors, crate_description, crate_name, crate_version, value_parser, Arg, ArgAction,
-    ArgMatches, Command,
+    builder::PossibleValue, crate_authors, crate_description, crate_name, crate_version,
+    value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
 };
 use std::env;
-use std::path::PathBuf;
+use std::fs::File;
+use std::path::{Path, PathBuf};
 use std::{error::Error, io, io::Write};
 
 use git2::Time;
 
 use time::{error, macros::format_description, Date, OffsetDateTime, UtcOffset};
 
-#[derive(Debug, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum OutputFormat {
     Csv,
     Json,
     D3Graphics,
 }
 
-#[derive(Debug, Clone)]
-pub enum OutputTarget {
-    Stdout,
-    Browser,
-    File(String),
-}
-#[derive(Debug, Clone)]
-pub struct CommonArgs {
-    pub project_dir: String,
-    pub format: OutputFormat,
-    pub output: OutputTarget,
+impl ValueEnum for OutputFormat {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[
+            OutputFormat::Csv,
+            OutputFormat::Json,
+            OutputFormat::D3Graphics,
+        ]
+    }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(match self {
+            OutputFormat::Csv => PossibleValue::new("csv")
+                .help("Character separated value, ',' is delimiter, 1st line is item name"),
+            OutputFormat::Json => PossibleValue::new("json").help("JSON prettry printed output"),
+            OutputFormat::D3Graphics => {
+                PossibleValue::new("D3html").help("Render to D3 graphics as single html page")
+            }
+        })
+    }
 }
 
-impl CommonArgs {
+#[derive(Debug, Clone)]
+pub struct CommonArgs<'a> {
+    pub project_dir: String,
+    pub format: OutputFormat,
+    pub output: Option<&'a PathBuf>,
+}
+
+impl CommonArgs<'_> {
     pub fn new(project_dir: Option<&PathBuf>) -> Self {
         let project_dir = match project_dir {
             Some(x) => x.clone(),
@@ -39,7 +55,7 @@ impl CommonArgs {
         CommonArgs {
             project_dir: project_dir.into_os_string().into_string().unwrap().clone(),
             format: OutputFormat::Csv,
-            output: OutputTarget::Stdout,
+            output: None,
         }
     }
 }
@@ -97,7 +113,7 @@ pub fn common_builder() -> Command {
             ),
     )
     .arg (
-        Arg::new("project_dir")
+        Arg::new("DIRECTORY")
         .long("project_dir")
         .short('C')
         .required(false)
@@ -115,6 +131,26 @@ pub fn common_builder() -> Command {
         .action(ArgAction::SetTrue)
         .help(
             "Show progress"
+        )
+    )
+    .arg (
+        Arg::new("format")
+        .long("format")
+        .short('f')
+        .default_value("csv")
+        .value_parser(value_parser!(OutputFormat))
+        .help(
+            "Set the output format"
+        )
+    )
+    .arg (
+        Arg::new("FILE")
+        .long("output")
+        .short('o')
+        .required(false)
+        .value_parser(value_parser!(PathBuf))
+        .help(
+            "Write the output to a file instead of <stdout>"
         )
     )
 }
@@ -152,8 +188,20 @@ pub trait OutputFormatter {
     fn csv_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>>;
     fn json_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>>;
 
-    fn output(&self, _format: OutputFormat, _target: OutputTarget) {
-        let mut writer = io::stdout();
-        self.csv_output(&mut writer).unwrap();
+    fn output(&self, format: OutputFormat, target: Option<&PathBuf>) {
+        let mut writer = match target {
+            Some(path) => {
+                let path = Path::new(&path);
+                Box::new(File::create(&path).expect("Unable to create file")) as Box<dyn Write>
+            }
+            None => Box::new(io::stdout()) as Box<dyn Write>,
+        };
+        match format {
+            OutputFormat::Csv => self.csv_output(&mut writer).unwrap(),
+            OutputFormat::Json => self.json_output(&mut writer).unwrap(),
+            OutputFormat::D3Graphics => {
+                self.json_output(&mut writer).unwrap();
+            }
+        }
     }
 }

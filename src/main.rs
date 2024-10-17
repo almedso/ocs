@@ -7,7 +7,7 @@ use crate::git::determine_commits_to_analyse;
 use crate::progress::configure_progress_visualization;
 
 use clap::Arg;
-use cli::{CommonArgs, GitArgs};
+use cli::{CommonArgs, GitArgs, OutputFormat};
 
 pub mod subcommands {
     #[macro_use]
@@ -46,7 +46,11 @@ fn main() {
     configure_progress_visualization(matches.get_flag("progress"));
     let verbose = matches.get_count("verbose") as u64;
     setup_logger(verbose);
-    let common_args = CommonArgs::new(matches.get_one::<PathBuf>("project_dir"));
+    let mut common_args = CommonArgs::new(matches.get_one::<PathBuf>("DIRECTORY"));
+    common_args.format = *matches
+        .get_one::<OutputFormat>("format")
+        .expect("Option with default is never None");
+    common_args.output = matches.get_one::<PathBuf>("FILE");
 
     // process the respective subcommand
     match matches.subcommand() {

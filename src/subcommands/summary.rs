@@ -108,18 +108,16 @@ impl<'a> Summary<'a> {
     }
 }
 
-
-impl OutputFormatter for SummaryRawData{
-
-    fn csv_output(&self, writer: &mut dyn Write,) -> Result<(), Box<dyn Error>> {
+impl OutputFormatter for SummaryRawData {
+    fn csv_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>> {
         let mut wtr = csv::Writer::from_writer(writer);
 
-        wtr.serialize(Summary::new("number-of-commits",self.no_of_commits))?;
-        wtr.serialize(Summary::new("number-of-authors",self.no_of_authors))?;
-        wtr.serialize(Summary::new("number-of-entries",self.no_of_entries))?;
+        wtr.serialize(Summary::new("number-of-commits", self.no_of_commits))?;
+        wtr.serialize(Summary::new("number-of-authors", self.no_of_authors))?;
+        wtr.serialize(Summary::new("number-of-entries", self.no_of_entries))?;
         wtr.serialize(Summary::new(
             "number-of-entries-changed",
-           self.no_of_entries_changed,
+            self.no_of_entries_changed,
         ))?;
 
         wtr.flush()?;
@@ -130,12 +128,12 @@ impl OutputFormatter for SummaryRawData{
         let mut wtr = serde_json::Serializer::pretty(writer);
 
         let mut o = Vec::<Summary>::new();
-        o.push(Summary::new("number-of-commits",self.no_of_commits));
-        o.push(Summary::new("number-of-authors",self.no_of_authors));
-        o.push(Summary::new("number-of-entries",self.no_of_entries));
+        o.push(Summary::new("number-of-commits", self.no_of_commits));
+        o.push(Summary::new("number-of-authors", self.no_of_authors));
+        o.push(Summary::new("number-of-entries", self.no_of_entries));
         o.push(Summary::new(
             "number-of-entries-changed",
-           self.no_of_entries_changed,
+            self.no_of_entries_changed,
         ));
 
         o.serialize(&mut wtr)?;
@@ -143,5 +141,3 @@ impl OutputFormatter for SummaryRawData{
         Ok(())
     }
 }
-
-
