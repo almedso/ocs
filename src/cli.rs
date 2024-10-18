@@ -187,6 +187,7 @@ fn parse_iso_date_and_convert_to_git_time(arg: &str) -> Result<Time, error::Pars
 pub trait OutputFormatter {
     fn csv_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>>;
     fn json_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>>;
+    fn d3_html_output(&self, writer: &mut dyn Write) -> Result<(), Box<dyn Error>>;
 
     fn output(&self, format: OutputFormat, target: Option<&PathBuf>) {
         let mut writer = match target {
@@ -200,7 +201,7 @@ pub trait OutputFormatter {
             OutputFormat::Csv => self.csv_output(&mut writer).unwrap(),
             OutputFormat::Json => self.json_output(&mut writer).unwrap(),
             OutputFormat::D3Graphics => {
-                self.json_output(&mut writer).unwrap();
+                self.d3_html_output(&mut writer).unwrap();
             }
         }
     }
